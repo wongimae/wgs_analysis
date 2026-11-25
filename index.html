@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wisma Geylang Serai · Observation dashboard</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172b3a;
+      --muted: #71818d;
+      --line: #e4e9ec;
+      --paper: #ffffff;
+      --canvas: #f3f6f7;
+      --blue: #2585c4;
+      --orange: #e58b39;
+      --green: #418574;
+      --shadow: 0 12px 34px rgba(27, 49, 63, .065);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font: 14px/1.45 "Segoe UI", Arial, sans-serif;
+    }
+
+    button, input { font: inherit; }
+    button { color: inherit; }
+
+    .shell { max-width: 1600px; margin: 0 auto; padding: 28px 34px 40px; }
+    .topline { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+    .eyebrow {
+      display: flex; align-items: center; gap: 8px; color: var(--green);
+      font-size: 11px; font-weight: 750; letter-spacing: .13em; text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #64a994; }
+    h1 { margin: 7px 0 2px; font-size: clamp(24px, 3vw, 35px); letter-spacing: -.04em; line-height: 1.15; }
+    .subtitle { color: var(--muted); font-size: 13px; }
+    .date-badge {
+      flex: none; padding: 9px 13px; border: 1px solid #dfe7e7; border-radius: 9px;
+      background: #fff; color: #536871; font-size: 12px; font-weight: 650;
+    }
+
+    .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 24px 0 18px; }
+    .kpi { padding: 15px 17px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: var(--shadow); }
+    .kpi-label { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+    .kpi-value { margin-top: 3px; font-size: 25px; font-weight: 730; letter-spacing: -.035em; }
+    .kpi-note { color: #8a969d; font-size: 11px; }
+
+    .controls {
+      display: flex; align-items: end; flex-wrap: wrap; gap: 13px;
+      padding: 15px 17px; border: 1px solid var(--line); border-radius: 12px;
+      background: var(--paper); box-shadow: var(--shadow); margin-bottom: 17px;
+    }
+    .control-group { display: flex; flex-direction: column; gap: 5px; }
+    .control-group label, .control-label { color: #687983; font-size: 10px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    .date-input {
+      width: 204px; height: 36px; border: 1px solid #dce4e8; border-radius: 7px;
+      background: #fbfcfc; padding: 0 9px; color: var(--ink); font-size: 12px;
+    }
+    .observer-toggle { display: flex; align-items: center; gap: 7px; }
+    .pill {
+      height: 36px; padding: 0 12px; border: 1px solid #dce4e8; border-radius: 8px;
+      background: #fff; color: #536570; cursor: pointer; font-size: 12px; font-weight: 650;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .pill.active { border-color: #b7d7d0; background: #eff8f5; color: #276d60; }
+    .pill[data-observer="A"].active { border-color: #b7d7d0; background: #eff8f5; color: #276d60; }
+    .pill[data-observer="B"].active { border-color: #c1d9eb; background: #f0f7fc; color: #2672a6; }
+    .reset-button { margin-left: auto; height: 36px; padding: 0 12px; border: 0; background: transparent; color: #6d7f89; cursor: pointer; font-size: 12px; }
+    .reset-button:hover { color: var(--ink); }
+
+    .layout { display: grid; grid-template-columns: minmax(0, 1.72fr) minmax(300px, .82fr); gap: 17px; align-items: start; }
+    .card { border: 1px solid var(--line); border-radius: 13px; background: var(--paper); box-shadow: var(--shadow); overflow: hidden; }
+    .card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px 12px; }
+    .card-title { margin: 0; font-size: 14px; font-weight: 730; letter-spacing: -.01em; }
+    .card-hint { color: var(--muted); font-size: 11px; }
+    .floor-tabs { display: flex; gap: 5px; padding: 0 18px 13px; }
+    .floor-tab {
+      min-width: 48px; padding: 6px 11px; border: 1px solid transparent; border-radius: 7px;
+      background: #f4f6f7; color: #687983; cursor: pointer; font-size: 11px; font-weight: 700;
+    }
+    .floor-tab.active { border-color: #bdd9d4; background: #eaf5f2; color: #276d60; }
+    .view-switch { display: flex; padding: 3px; border: 1px solid #e0e7e9; border-radius: 8px; background: #f4f6f7; }
+    .view-switch button { padding: 5px 9px; border: 0; border-radius: 6px; background: transparent; color: #697b84; cursor: pointer; font-size: 10px; font-weight: 700; }
+    .view-switch button.active { background: white; color: #276d60; box-shadow: 0 1px 3px rgba(20,40,50,.12); }
+    .map-head-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; }
+    .paired-observer-switch { display: flex; gap: 4px; }
+    .paired-observer-switch[hidden] { display: none; }
+    .paired-observer-switch button { padding: 4px 8px; border: 1px solid #e1e7e9; border-radius: 6px; background: white; color: #687983; cursor: pointer; font-size: 9px; font-weight: 650; }
+    .paired-observer-switch button.active { border-color: #b7d7d0; background: #eff8f5; color: #276d60; }
+    .paired-observer-switch button[data-paired-observer="B"].active { border-color: #c1d9eb; background: #f0f7fc; color: #2672a6; }
+    .map-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #e9edeb; overflow: hidden; }
+    #singleMapView[hidden], #pairedGrid[hidden] { display: none; }
+    .map-art { position: absolute; inset: 0; transform: translate(-29.2%, -38.4%) scale(1.65, 1.55); transform-origin: top left; }
+    .floor-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; }
+    #mapSvg, .map-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .route-tail { fill: none; stroke: #23967a; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+    .route-head-pulse { fill: rgba(35,150,122,.14); stroke: #23967a; stroke-width: 1; vector-effect: non-scaling-stroke; }
+    .route-head { fill: #16785f; stroke: #fff; stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+    .route-layer.route-playing { animation: trail-pulse 1.15s ease-in-out infinite; }
+    @keyframes trail-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+    .ping { cursor: pointer; vector-effect: non-scaling-stroke; transition: opacity .12s, stroke-width .12s; }
+    .ping:hover { opacity: 1 !important; stroke: #132d3b; stroke-width: 1.5; }
+    .ping.individual { fill: var(--blue); stroke: rgba(255,255,255,.92); stroke-width: .8; }
+    .ping.small-group { fill: var(--orange); stroke: rgba(255,255,255,.94); stroke-width: .8; }
+    .ping.large-group { fill: rgba(255,255,255,.1); stroke: #e27e2d; stroke-width: 1.4; }
+    .map-empty { position: absolute; inset: 0; display: grid; place-items: center; color: #6b7b82; font-size: 13px; pointer-events: none; }
+    .map-empty[hidden] { display: none; }
+    .paired-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 0 14px 14px; }
+    .observer-stack[hidden] { display: none; }
+    .observer-stack { min-width: 0; padding: 11px; border: 1px solid #e7ecee; border-radius: 10px; background: #fbfcfc; }
+    .stack-title { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 11px; font-weight: 750; }
+    .stack-title span { color: #8a969d; font-size: 9px; font-weight: 500; }
+    .floor-slab + .floor-slab { margin-top: 9px; }
+    .stack-floor-head { display: flex; justify-content: space-between; align-items: center; padding: 0 2px 4px; color: #526671; font-size: 10px; font-weight: 700; }
+    .stack-floor-head span { color: #8b969c; font-size: 9px; font-weight: 500; }
+    .stack-map { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid #e2e8e8; border-radius: 6px; background: #e9edeb; }
+    .stack-map .map-art { transform: translate(-29.2%, -38.4%) scale(1.65, 1.55); }
+    .stack-empty { position: absolute; inset: 0; display: grid; place-items: center; color: #6b7b82; background: rgba(245,248,247,.8); font-size: 10px; pointer-events: none; }
+    .stack-empty[hidden] { display: none; }
+    .stack-count { padding: 4px 2px 0; color: #86939a; font-size: 9px; text-align: right; }
+    .map-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 17px; border-top: 1px solid var(--line); }
+    .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; color: #657780; font-size: 10px; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
+    .legend-dot.orange { background: var(--orange); }
+    .legend-ring { display: inline-block; width: 13px; height: 13px; border: 1.5px solid var(--orange); border-radius: 50%; }
+    .legend-route { width: 20px; height: 2px; background: linear-gradient(90deg, rgba(35,150,122,.16), #23967a); }
+    .map-count { color: #798890; font-size: 10px; white-space: nowrap; }
+    .playback { padding: 13px 18px 16px; border-top: 1px solid var(--line); }
+    .playback-top { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+    .play-button { width: 31px; height: 30px; border: 1px solid #dce4e8; border-radius: 7px; background: white; cursor: pointer; font-size: 12px; }
+    .play-label { color: #72828b; font-size: 10px; }
+    .time-range { flex: 1; accent-color: var(--green); }
+    .play-time { min-width: 122px; text-align: right; color: #4a606b; font-size: 10px; font-variant-numeric: tabular-nums; }
+    .timeline-note { color: #8b969c; font-size: 10px; }
+    @media (prefers-reduced-motion: reduce) {
+      .route-layer.route-playing { animation: none; }
+    }
+
+    .side-stack { display: grid; gap: 17px; }
+    .side-card { padding: 16px 17px; }
+    .side-card .card-title { margin-bottom: 13px; }
+    .observer-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid #eff2f3; }
+    .observer-mark { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+    .observer-mark.b { background: var(--blue); }
+    .observer-info { flex: 1; }
+    .observer-name { font-size: 12px; font-weight: 680; }
+    .observer-floors { color: var(--muted); font-size: 10px; }
+    .observer-total { font-size: 13px; font-weight: 720; font-variant-numeric: tabular-nums; }
+    .chart { display: flex; align-items: end; gap: 7px; height: 100px; padding: 3px 2px 0; border-bottom: 1px solid #e6ebed; }
+    .bar-column { display: flex; flex: 1; height: 100%; flex-direction: column; justify-content: end; align-items: center; gap: 5px; min-width: 0; }
+    .bar-value { color: #71818a; font-size: 9px; }
+    .bar { width: min(27px, 72%); min-height: 2px; border-radius: 4px 4px 0 0; background: #79b4a7; }
+    .bar-label { margin-top: 6px; color: #829098; font-size: 9px; }
+    .activity-list { display: grid; gap: 11px; }
+    .activity-line { display: grid; grid-template-columns: minmax(0, 1fr) 35px; align-items: center; gap: 8px; }
+    .activity-name { overflow: hidden; color: #526671; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .activity-number { color: #526671; font-size: 10px; text-align: right; font-variant-numeric: tabular-nums; }
+    .activity-track { grid-column: 1 / -1; height: 4px; overflow: hidden; border-radius: 9px; background: #f0f3f4; margin-top: -5px; }
+    .activity-fill { height: 100%; border-radius: inherit; background: #8bb9af; }
+    .detail-card { min-height: 106px; }
+    .detail-placeholder { color: #849199; font-size: 11px; line-height: 1.6; }
+    .detail-time { color: #647780; font-size: 10px; }
+    .detail-activity { margin: 5px 0 2px; font-size: 13px; font-weight: 700; }
+    .detail-meta { color: #77868d; font-size: 10px; }
+    .notice { margin-top: 16px; color: #87949b; font-size: 10px; line-height: 1.55; }
+    .error { display: none; margin: 14px 0; padding: 12px 15px; border: 1px solid #f0d1c7; border-radius: 9px; background: #fff7f4; color: #99513c; font-size: 12px; }
+    .loading { padding: 90px 20px; color: #647780; text-align: center; }
+
+    @media (max-width: 980px) {
+      .shell { padding: 22px 20px 34px; }
+      .layout { grid-template-columns: 1fr; }
+      .side-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .side-card:last-child { grid-column: span 2; }
+    }
+    @media (max-width: 620px) {
+      .shell { padding: 17px 12px 28px; }
+      .topline { align-items: flex-start; }
+      .date-badge { max-width: 130px; text-align: center; font-size: 10px; }
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 17px 0 12px; }
+      .kpi { padding: 12px; }
+      .kpi-value { font-size: 21px; }
+      .controls { gap: 10px; padding: 12px; }
+      .date-input { width: 100%; }
+      .control-group.date-group { flex: 1 1 44%; min-width: 140px; }
+      .observer-group { flex: 1 1 100%; }
+      .reset-button { margin-left: 0; }
+      .card-head { align-items: flex-start; flex-direction: column; }
+      .map-footer { align-items: flex-start; flex-direction: column; }
+      .side-stack { grid-template-columns: 1fr; }
+      .side-card:last-child { grid-column: auto; }
+      .play-time { min-width: 96px; font-size: 9px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topline">
+      <div>
+        <div class="eyebrow">Fieldwork · Wisma Geylang Serai</div>
+        <h1>Movement &amp; observations</h1>
+        <div class="subtitle">A time-ordered view of where researchers paused to record activity.</div>
+      </div>
+      <div class="date-badge">All times shown in SGT · UTC+8</div>
+    </header>
+
+    <div id="error" class="error"></div>
+    <section class="kpis" aria-label="Observation summary">
+      <article class="kpi"><div class="kpi-label">Observations</div><div class="kpi-value" id="kpiTotal">—</div><div class="kpi-note">within selected dates &amp; researchers</div></article>
+      <article class="kpi"><div class="kpi-label">Individuals</div><div class="kpi-value" id="kpiIndividuals">—</div><div class="kpi-note">individual capture pings</div></article>
+      <article class="kpi"><div class="kpi-label">Small groups</div><div class="kpi-value" id="kpiSmall">—</div><div class="kpi-note">detailed group observations</div></article>
+      <article class="kpi"><div class="kpi-label">Large groups</div><div class="kpi-value" id="kpiLarge">—</div><div class="kpi-note">ring size reflects group size</div></article>
+    </section>
+
+    <section class="controls" aria-label="Dashboard filters">
+      <div class="control-group date-group"><label for="startDate">From · SGT</label><input class="date-input" id="startDate" type="datetime-local" value="2026-11-18T08:00"></div>
+      <div class="control-group date-group"><label for="endDate">To · SGT</label><input class="date-input" id="endDate" type="datetime-local" value="2026-11-24T21:00"></div>
+      <div class="control-group observer-group"><span class="control-label">Researcher</span><div class="observer-toggle">
+        <button class="pill active" data-observer="A" aria-pressed="true">Researcher A · Floors 1 &amp; 4</button>
+        <button class="pill active" data-observer="B" aria-pressed="true">Researcher B · Floors 2 &amp; 3</button>
+      </div></div>
+      <button class="reset-button" id="resetFilters">Reset dates</button>
+    </section>
+
+    <section class="layout">
+      <article class="card">
+        <div class="card-head">
+          <div><h2 class="card-title">Observation map</h2><div class="card-hint" id="floorCaption">Paired floors · 4 over 1; 3 over 2</div></div>
+          <div class="map-head-actions">
+            <div class="view-switch" role="group" aria-label="Map view">
+              <button type="button" data-view="single">Single floor</button>
+              <button type="button" class="active" data-view="paired">Paired floors</button>
+            </div>
+            <div class="paired-observer-switch" id="pairedObserverSwitch" role="group" aria-label="Choose researcher">
+              <button type="button" class="active" data-paired-observer="A" aria-pressed="true">Researcher A · 4 + 1</button>
+              <button type="button" data-paired-observer="B" aria-pressed="false">Researcher B · 3 + 2</button>
+            </div>
+          </div>
+        </div>
+        <div id="singleMapView" hidden>
+          <nav class="floor-tabs" aria-label="Choose floor">
+            <button class="floor-tab active" data-floor="ground-floor">Floor 1</button>
+            <button class="floor-tab" data-floor="second-floor">Floor 2</button>
+            <button class="floor-tab" data-floor="third-floor">Floor 3</button>
+            <button class="floor-tab" data-floor="fourth-floor">Floor 4</button>
+          </nav>
+          <div class="map-wrap" id="mapWrap">
+            <div class="map-art">
+              <img class="floor-image" id="floorImage" src="Floor_1.jpg" alt="Floor plan">
+              <svg id="mapSvg" viewBox="0 0 1000 562.5" preserveAspectRatio="none" role="img" aria-label="Observation pings and route">
+                <g id="routeLayer" class="route-layer"></g><g id="pingLayer"></g>
+              </svg>
+            </div>
+            <div id="mapEmpty" class="map-empty" hidden>No observations in this selection.</div>
+          </div>
+          <div class="map-footer">
+            <div class="legend">
+              <span class="legend-item"><i class="legend-dot"></i>Individual</span>
+              <span class="legend-item"><i class="legend-dot orange"></i>Small group</span>
+              <span class="legend-item"><i class="legend-ring"></i>Large group · size-scaled rings</span>
+              <span class="legend-item"><i class="legend-route"></i>Recent route trail</span>
+            </div>
+            <span class="map-count" id="mapCount">— pings</span>
+          </div>
+        </div>
+        <div class="paired-grid" id="pairedGrid">
+          <section class="observer-stack" data-observer-stack="A">
+            <div class="stack-title">Researcher A <span>Floor 4 above Floor 1</span></div>
+            <div class="floor-slab" data-stack-floor="fourth-floor">
+              <div class="stack-floor-head">Floor 4 <span>Upper level</span></div>
+              <div class="stack-map"><div class="map-art"><img class="floor-image" src="Floor_4.jpg" alt="Floor 4 floor plan"><svg class="map-svg" viewBox="0 0 1000 562.5" preserveAspectRatio="none"><g class="route-layer"></g><g class="ping-layer"></g></svg></div><div class="stack-empty" hidden>No observations</div></div>
+              <div class="stack-count"></div>
+            </div>
+            <div class="floor-slab" data-stack-floor="ground-floor">
+              <div class="stack-floor-head">Floor 1 <span>Lower level</span></div>
+              <div class="stack-map"><div class="map-art"><img class="floor-image" src="Floor_1.jpg" alt="Floor 1 floor plan"><svg class="map-svg" viewBox="0 0 1000 562.5" preserveAspectRatio="none"><g class="route-layer"></g><g class="ping-layer"></g></svg></div><div class="stack-empty" hidden>No observations</div></div>
+              <div class="stack-count"></div>
+            </div>
+          </section>
+          <section class="observer-stack" data-observer-stack="B" hidden>
+            <div class="stack-title">Researcher B <span>Floor 3 above Floor 2</span></div>
+            <div class="floor-slab" data-stack-floor="third-floor">
+              <div class="stack-floor-head">Floor 3 <span>Upper level</span></div>
+              <div class="stack-map"><div class="map-art"><img class="floor-image" src="Floor_3.jpg" alt="Floor 3 floor plan"><svg class="map-svg" viewBox="0 0 1000 562.5" preserveAspectRatio="none"><g class="route-layer"></g><g class="ping-layer"></g></svg></div><div class="stack-empty" hidden>No observations</div></div>
+              <div class="stack-count"></div>
+            </div>
+            <div class="floor-slab" data-stack-floor="second-floor">
+              <div class="stack-floor-head">Floor 2 <span>Lower level</span></div>
+              <div class="stack-map"><div class="map-art"><img class="floor-image" src="Floor_2.jpg" alt="Floor 2 floor plan"><svg class="map-svg" viewBox="0 0 1000 562.5" preserveAspectRatio="none"><g class="route-layer"></g><g class="ping-layer"></g></svg></div><div class="stack-empty" hidden>No observations</div></div>
+              <div class="stack-count"></div>
+            </div>
+          </section>
+        </div>
+        <div class="playback">
+          <div class="playback-top">
+            <button id="playButton" class="play-button" aria-label="Play timeline">▶</button>
+            <span class="play-label">Replay</span>
+            <input id="timeRange" class="time-range" type="range" min="0" max="0" value="0" aria-label="Replay observations in time order">
+            <span class="play-time" id="playTime">—</span>
+          </div>
+          <div class="timeline-note">A short trail highlights the latest averaged route locations; older segments drop away. The route is approximate, not continuous GPS.</div>
+        </div>
+      </article>
+
+      <aside class="side-stack">
+        <section class="card side-card">
+          <h2 class="card-title">Researcher coverage</h2>
+          <div class="observer-row"><i class="observer-mark"></i><div class="observer-info"><div class="observer-name">Researcher A</div><div class="observer-floors">Floors 1 &amp; 4</div></div><div class="observer-total" id="observerACount">—</div></div>
+          <div class="observer-row"><i class="observer-mark b"></i><div class="observer-info"><div class="observer-name">Researcher B</div><div class="observer-floors">Floors 2 &amp; 3</div></div><div class="observer-total" id="observerBCount">—</div></div>
+        </section>
+        <section class="card side-card">
+          <h2 class="card-title">Observations by day</h2>
+          <div id="dailyChart" class="chart" aria-label="Daily observations bar chart"></div>
+        </section>
+        <section class="card side-card">
+          <h2 class="card-title">What was observed <span class="card-hint" id="activityScope">(paired floors)</span></h2>
+          <div id="activityList" class="activity-list"></div>
+        </section>
+        <section class="card side-card detail-card">
+          <h2 class="card-title">Ping details</h2>
+          <div id="detailContent" class="detail-placeholder">Choose any dot or ring on the floor plan to inspect its timestamp, activity, and observation details.</div>
+        </section>
+      </aside>
+    </section>
+    <p class="notice">Source: indoor activity records, Wisma Geylang Serai. Floor 1 is mapped to ground-floor records. Paired view stacks Floors 4 over 1 for Researcher A and Floors 3 over 2 for Researcher B; floor routes remain separate because the records contain observation locations rather than continuous researcher GPS.</p>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var source = "observations-public.json";
+      var floors = {
+        "ground-floor": { label: "Floor 1", image: "Floor_1.jpg", observer: "A" },
+        "second-floor": { label: "Floor 2", image: "Floor_2.jpg", observer: "B" },
+        "third-floor": { label: "Floor 3", image: "Floor_3.jpg", observer: "B" },
+        "fourth-floor": { label: "Floor 4", image: "Floor_4.jpg", observer: "A" }
+      };
+      var defaults = { start: "2026-11-18T08:00", end: "2026-11-24T21:00" };
+      var records = [];
+      var filtered = [];
+      var activeFloor = "ground-floor";
+      var activePairedObserver = "A";
+      var viewMode = "paired";
+      var enabledObservers = { A: true, B: true };
+      var playbackTimer = null;
+      var visibleLimit = Infinity;
+      var numberFormat = new Intl.NumberFormat("en-SG");
+
+      var startInput = document.getElementById("startDate");
+      var endInput = document.getElementById("endDate");
+      var timeRange = document.getElementById("timeRange");
+      var playTime = document.getElementById("playTime");
+
+      function escapeText(value) {
+        return String(value == null || value === "" ? "Not recorded" : value)
+          .replace(/[&<>"']/g, function (char) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char];
+          });
+      }
+
+      function sgtDate(record) {
+        var value = record.createdAt || record.activityTime;
+        if (!value) return null;
+        var parsed = new Date(value);
+        return isNaN(parsed.getTime()) ? null : parsed;
+      }
+
+      function formatDate(date, includeDate) {
+        if (!date) return "Time unavailable";
+        return new Intl.DateTimeFormat("en-SG", {
+          timeZone: "Asia/Singapore",
+          day: includeDate ? "2-digit" : undefined,
+          month: includeDate ? "short" : undefined,
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false
+        }).format(date);
+      }
+
+      function inputSgtEpoch(value) {
+        if (!value) return NaN;
+        return new Date(value + ":00+08:00").getTime();
+      }
+
+      function markerType(record) {
+        if (record.recordType === "largeGroup") return "large-group";
+        if (record.captureMode === "individual") return "individual";
+        return "small-group";
+      }
+
+      function activityName(record) {
+        return record.activityType || record.activityDescription || (record.recordType === "largeGroup" ? "Large group" : "Activity not specified");
+      }
+
+      function groupSize(record) {
+        var size = Number(record.sizeBand);
+        return isFinite(size) && size > 0 ? size : null;
+      }
+
+      function recordsInWindow() {
+        var from = inputSgtEpoch(startInput.value);
+        var to = inputSgtEpoch(endInput.value);
+        if (!isFinite(from) || !isFinite(to) || from > to) {
+          showError("Check the date range: the start must be before the end.");
+          return [];
+        }
+        hideError();
+        return records.filter(function (record) {
+          var date = sgtDate(record);
+          var observer = floors[record.floorId] && floors[record.floorId].observer;
+          return date && date.getTime() >= from && date.getTime() <= to && observer && enabledObservers[observer];
+        }).sort(function (a, b) { return sgtDate(a) - sgtDate(b); });
+      }
+
+      function showError(message) {
+        var error = document.getElementById("error");
+        error.textContent = message;
+        error.style.display = "block";
+      }
+
+      function hideError() {
+        document.getElementById("error").style.display = "none";
+      }
+
+      function updateSummary() {
+        var individual = 0, small = 0, large = 0, observerA = 0, observerB = 0;
+        filtered.forEach(function (record) {
+          var type = markerType(record);
+          if (type === "individual") individual++;
+          else if (type === "large-group") large++;
+          else small++;
+          if (floors[record.floorId].observer === "A") observerA++;
+          else observerB++;
+        });
+        document.getElementById("kpiTotal").textContent = numberFormat.format(filtered.length);
+        document.getElementById("kpiIndividuals").textContent = numberFormat.format(individual);
+        document.getElementById("kpiSmall").textContent = numberFormat.format(small);
+        document.getElementById("kpiLarge").textContent = numberFormat.format(large);
+        document.getElementById("observerACount").textContent = numberFormat.format(observerA);
+        document.getElementById("observerBCount").textContent = numberFormat.format(observerB);
+        updateDailyChart();
+      }
+
+      function selectedFloorRecords() {
+        return filtered.filter(function (record) { return record.floorId === activeFloor; });
+      }
+
+      function timelineRecords() {
+        return filtered.filter(function (record) {
+          if (viewMode === "paired") return floors[record.floorId].observer === activePairedObserver;
+          return record.floorId === activeFloor;
+        });
+      }
+
+      function dayKey(date) {
+        return new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Singapore",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit"
+        }).format(date);
+      }
+
+      function drawFloorMap(floorId, routeLayer, pingLayer, mapData) {
+        routeLayer.replaceChildren();
+        pingLayer.replaceChildren();
+
+        var routeSegments = [];
+        var routePoints = [];
+        var previousRouteDate = null;
+        var previousRouteTime = null;
+        var bucketKey = null;
+        var bucketX = 0;
+        var bucketY = 0;
+        var bucketCount = 0;
+        function flushBucket() {
+          if (!bucketCount) return;
+          routePoints.push({ x: bucketX / bucketCount, y: bucketY / bucketCount });
+          bucketKey = null;
+          bucketX = 0;
+          bucketY = 0;
+          bucketCount = 0;
+        }
+        function flushSegment() {
+          flushBucket();
+          if (routePoints.length) routeSegments.push(routePoints);
+          routePoints = [];
+        }
+        mapData.forEach(function (record) {
+          var loc = record.location;
+          if (!loc || !isFinite(Number(loc.xPct)) || !isFinite(Number(loc.yPct))) return;
+          var x = Number(loc.xPct) * 10;
+          var y = Number(loc.yPct) * 5.625;
+          var date = sgtDate(record);
+          var day = date && dayKey(date);
+          if (bucketCount && (day !== previousRouteDate || date.getTime() - previousRouteTime > 30 * 60 * 1000)) flushSegment();
+          var nextBucket = day + "-" + Math.floor(date.getTime() / (30 * 60 * 1000));
+          if (bucketKey && nextBucket !== bucketKey) flushBucket();
+          bucketKey = nextBucket;
+          bucketX += x;
+          bucketY += y;
+          bucketCount++;
+          previousRouteDate = day;
+          previousRouteTime = date && date.getTime();
+        });
+
+        flushSegment();
+        var currentSegment = routeSegments[routeSegments.length - 1] || [];
+        var trail = currentSegment.slice(-4);
+        var trailSegments = trail.length - 1;
+        for (var i = 0; i < trailSegments; i++) {
+          var path = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+          var strength = (i + 1) / trailSegments;
+          path.setAttribute("class", "route-tail");
+          path.setAttribute("points", trail[i].x + "," + trail[i].y + " " + trail[i + 1].x + "," + trail[i + 1].y);
+          path.setAttribute("stroke-opacity", String(0.18 + strength * 0.66));
+          path.setAttribute("stroke-width", String(1.2 + strength * 2.2));
+          routeLayer.appendChild(path);
+        }
+        if (trail.length) {
+          var head = trail[trail.length - 1];
+          var halo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          halo.setAttribute("class", "route-head-pulse");
+          halo.setAttribute("cx", head.x);
+          halo.setAttribute("cy", head.y);
+          halo.setAttribute("r", "5.5");
+          routeLayer.appendChild(halo);
+          var dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          dot.setAttribute("class", "route-head");
+          dot.setAttribute("cx", head.x);
+          dot.setAttribute("cy", head.y);
+          dot.setAttribute("r", "2.5");
+          routeLayer.appendChild(dot);
+        }
+
+        mapData.forEach(function (record) {
+          var loc = record.location;
+          if (!loc || !isFinite(Number(loc.xPct)) || !isFinite(Number(loc.yPct))) return;
+          var type = markerType(record);
+          var circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          var size = groupSize(record);
+          var radius = type === "large-group" ? Math.min(13, 3 + Math.sqrt(size || 4) * 1.1) : 2.8;
+          circle.setAttribute("cx", Number(loc.xPct) * 10);
+          circle.setAttribute("cy", Number(loc.yPct) * 5.625);
+          circle.setAttribute("r", radius);
+          circle.setAttribute("class", "ping " + type);
+          circle.setAttribute("opacity", type === "large-group" ? "0.88" : "0.68");
+          circle.setAttribute("aria-label", activityName(record) + " at " + formatDate(sgtDate(record), true));
+          circle.addEventListener("click", function () { showDetails(record); });
+          circle.addEventListener("mouseenter", function () { circle.setAttribute("opacity", "1"); });
+          circle.addEventListener("mouseleave", function () { circle.setAttribute("opacity", type === "large-group" ? "0.88" : "0.68"); });
+          pingLayer.appendChild(circle);
+        });
+      }
+
+      function updateMap() {
+        var singleView = document.getElementById("singleMapView");
+        var pairedGrid = document.getElementById("pairedGrid");
+        var mapTimeline = timelineRecords();
+        var visibleRecords = isFinite(visibleLimit) ? mapTimeline.slice(0, visibleLimit) : mapTimeline;
+        singleView.hidden = viewMode !== "single";
+        pairedGrid.hidden = viewMode !== "paired";
+        document.getElementById("pairedObserverSwitch").hidden = viewMode !== "paired";
+
+        if (viewMode === "single") {
+          var floor = floors[activeFloor];
+          var mapRecords = selectedFloorRecords();
+          var mapData = visibleRecords.filter(function (record) { return record.floorId === activeFloor; });
+          document.getElementById("floorImage").src = floor.image;
+          document.getElementById("floorImage").alt = floor.label + " floor plan";
+          document.getElementById("floorCaption").textContent = floor.label + " · Researcher " + floor.observer;
+          document.getElementById("mapCount").textContent = numberFormat.format(mapRecords.length) + " pings";
+          document.getElementById("mapEmpty").hidden = mapData.length > 0;
+          drawFloorMap(activeFloor, document.getElementById("routeLayer"), document.getElementById("pingLayer"), mapData);
+          return;
+        }
+
+        document.getElementById("floorCaption").textContent = "Researcher " + activePairedObserver + " · paired floor stack";
+        document.getElementById("mapCount").textContent = numberFormat.format(mapTimeline.length) + " pings on paired floors";
+        document.querySelectorAll("[data-stack-floor]").forEach(function (slab) {
+          var floorId = slab.dataset.stackFloor;
+          var floor = floors[floorId];
+          var observerStack = slab.closest("[data-observer-stack]");
+          observerStack.hidden = observerStack.dataset.observerStack !== activePairedObserver;
+          if (observerStack.hidden) return;
+          var allFloorRecords = mapTimeline.filter(function (record) { return record.floorId === floorId; });
+          var mapData = visibleRecords.filter(function (record) { return record.floorId === floorId; });
+          var image = slab.querySelector(".floor-image");
+          image.src = floor.image;
+          image.alt = floor.label + " floor plan";
+          slab.querySelector(".stack-empty").hidden = mapData.length > 0;
+          slab.querySelector(".stack-count").textContent = numberFormat.format(mapData.length) +
+            (isFinite(visibleLimit) ? " / " + numberFormat.format(allFloorRecords.length) + " pings" : " pings");
+          drawFloorMap(floorId, slab.querySelector(".route-layer"), slab.querySelector(".ping-layer"), mapData);
+        });
+      }
+
+      function updateDailyChart() {
+        var chart = document.getElementById("dailyChart");
+        chart.replaceChildren();
+        var days = {};
+        filtered.forEach(function (record) {
+          var date = sgtDate(record);
+          if (!date) return;
+          var day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Singapore", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+          days[day] = (days[day] || 0) + 1;
+        });
+        var entries = Object.keys(days).sort();
+        var max = Math.max.apply(null, entries.map(function (day) { return days[day]; }).concat([1]));
+        if (!entries.length) {
+          chart.textContent = "No observations for the selected dates.";
+          return;
+        }
+        entries.forEach(function (day) {
+          var column = document.createElement("div");
+          column.className = "bar-column";
+          var value = document.createElement("span");
+          value.className = "bar-value";
+          value.textContent = numberFormat.format(days[day]);
+          var bar = document.createElement("div");
+          bar.className = "bar";
+          bar.style.height = Math.max(2, days[day] / max * 67) + "px";
+          var label = document.createElement("span");
+          label.className = "bar-label";
+          label.textContent = day.slice(8);
+          label.title = day;
+          column.append(value, bar, label);
+          chart.appendChild(column);
+        });
+      }
+
+      function updateActivities() {
+        var container = document.getElementById("activityList");
+        container.replaceChildren();
+        var counts = {};
+        var activityRecords = timelineRecords();
+        document.getElementById("activityScope").textContent = viewMode === "paired" ? "(Researcher " + activePairedObserver + " · paired floors)" : "(selected floor)";
+        activityRecords.forEach(function (record) {
+          var name = activityName(record);
+          counts[name] = (counts[name] || 0) + 1;
+        });
+        var entries = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; }).slice(0, 6);
+        if (!entries.length) {
+          container.textContent = "No activity details for this selection.";
+          return;
+        }
+        var max = counts[entries[0]];
+        entries.forEach(function (name) {
+          var line = document.createElement("div");
+          line.className = "activity-line";
+          var label = document.createElement("span");
+          label.className = "activity-name";
+          label.textContent = name;
+          label.title = name;
+          var number = document.createElement("span");
+          number.className = "activity-number";
+          number.textContent = numberFormat.format(counts[name]);
+          var track = document.createElement("div");
+          track.className = "activity-track";
+          var fill = document.createElement("div");
+          fill.className = "activity-fill";
+          fill.style.width = (counts[name] / max * 100) + "%";
+          track.appendChild(fill);
+          line.append(label, number, track);
+          container.appendChild(line);
+        });
+      }
+
+      function showDetails(record) {
+        var detail = document.getElementById("detailContent");
+        var date = sgtDate(record);
+        var type = markerType(record);
+        var group = record.group || {};
+        var groupName = Array.isArray(group.identity) ? group.identity.join(", ") : "";
+        var meta = [
+          floors[record.floorId].label,
+          type === "individual" ? "Individual" : type === "small-group" ? "Small group" : "Large group" + (groupSize(record) ? " · " + groupSize(record) + " people" : ""),
+          record.posture,
+          record.socialContext ? record.socialContext.replace(/_/g, " ") : "",
+          groupName
+        ].filter(Boolean).join(" · ");
+        detail.innerHTML = '<div class="detail-time">' + escapeText(formatDate(date, true)) + ' SGT</div>' +
+          '<div class="detail-activity">' + escapeText(activityName(record)) + '</div>' +
+          '<div class="detail-meta">' + escapeText(meta) + '</div>' +
+          (record.notes ? '<div class="detail-meta" style="margin-top:5px">' + escapeText(record.notes) + '</div>' : "");
+      }
+
+      function updatePlayback() {
+        var max = Number(timeRange.max);
+        var index = Number(timeRange.value);
+        var mapTimeline = timelineRecords();
+        if (!mapTimeline.length) {
+          playTime.textContent = "No pings";
+          visibleLimit = Infinity;
+        } else {
+          var record = mapTimeline[Math.min(index, mapTimeline.length - 1)];
+          playTime.textContent = formatDate(sgtDate(record), true) + " SGT";
+          visibleLimit = index + 1;
+        }
+        updateMap();
+      }
+
+      function render() {
+        stopPlayback();
+        filtered = recordsInWindow();
+        var mapTimeline = timelineRecords();
+        visibleLimit = Infinity;
+        timeRange.min = "0";
+        timeRange.max = String(Math.max(0, mapTimeline.length - 1));
+        timeRange.value = String(Math.max(0, mapTimeline.length - 1));
+        updateSummary();
+        updateMap();
+        updateActivities();
+        playTime.textContent = mapTimeline.length ? formatDate(sgtDate(mapTimeline[mapTimeline.length - 1]), true) + " SGT" : "No pings";
+      }
+
+      function stopPlayback() {
+        if (playbackTimer) window.clearInterval(playbackTimer);
+        playbackTimer = null;
+        document.querySelectorAll(".route-layer").forEach(function (layer) { layer.classList.remove("route-playing"); });
+        document.getElementById("playButton").textContent = "▶";
+        document.getElementById("playButton").setAttribute("aria-label", "Play timeline");
+      }
+
+      document.querySelectorAll(".floor-tab").forEach(function (button) {
+        button.addEventListener("click", function () {
+          activeFloor = button.dataset.floor;
+          document.querySelectorAll(".floor-tab").forEach(function (tab) { tab.classList.toggle("active", tab === button); });
+          render();
+        });
+      });
+
+      document.querySelectorAll("[data-view]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          viewMode = button.dataset.view;
+          document.querySelectorAll("[data-view]").forEach(function (tab) { tab.classList.toggle("active", tab === button); });
+          render();
+        });
+      });
+
+      document.querySelectorAll("[data-paired-observer]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          activePairedObserver = button.dataset.pairedObserver;
+          document.querySelectorAll("[data-paired-observer]").forEach(function (tab) {
+            var active = tab === button;
+            tab.classList.toggle("active", active);
+            tab.setAttribute("aria-pressed", String(active));
+          });
+          render();
+        });
+      });
+
+      document.querySelectorAll("[data-observer]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          var observer = button.dataset.observer;
+          enabledObservers[observer] = !enabledObservers[observer];
+          button.classList.toggle("active", enabledObservers[observer]);
+          button.setAttribute("aria-pressed", String(enabledObservers[observer]));
+          render();
+        });
+      });
+
+      startInput.addEventListener("change", render);
+      endInput.addEventListener("change", render);
+      document.getElementById("resetFilters").addEventListener("click", function () {
+        startInput.value = defaults.start;
+        endInput.value = defaults.end;
+        enabledObservers = { A: true, B: true };
+        document.querySelectorAll("[data-observer]").forEach(function (button) {
+          button.classList.add("active");
+          button.setAttribute("aria-pressed", "true");
+        });
+        render();
+      });
+      timeRange.addEventListener("input", updatePlayback);
+      document.getElementById("playButton").addEventListener("click", function () {
+        if (playbackTimer) {
+          stopPlayback();
+          return;
+        }
+        var mapTimeline = timelineRecords();
+        if (!mapTimeline.length) return;
+        if (Number(timeRange.value) >= mapTimeline.length - 1) timeRange.value = "0";
+        document.querySelectorAll(".route-layer").forEach(function (layer) { layer.classList.add("route-playing"); });
+        document.getElementById("playButton").textContent = "Ⅱ";
+        document.getElementById("playButton").setAttribute("aria-label", "Pause timeline");
+        updatePlayback();
+        playbackTimer = window.setInterval(function () {
+          var next = Number(timeRange.value) + 1;
+          if (next >= mapTimeline.length) {
+            stopPlayback();
+            return;
+          }
+          timeRange.value = String(next);
+          updatePlayback();
+        }, 120);
+      });
+
+      fetch(source).then(function (response) {
+        if (!response.ok) throw new Error("Could not load observation data (" + response.status + ").");
+        return response.json();
+      }).then(function (data) {
+        if (!Array.isArray(data)) throw new Error("The observation file does not contain a record list.");
+        records = data;
+        render();
+      }).catch(function (error) {
+        showError(error.message + " Open this dashboard through a local web server from the data folder (for example: python -m http.server 8000), then visit http://localhost:8000/dashboard.html.");
+        document.getElementById("mapCount").textContent = "Data not loaded";
+        document.getElementById("mapEmpty").hidden = false;
+        document.getElementById("mapEmpty").textContent = "Unable to load observation records.";
+      });
+    }());
+  </script>
+</body>
+</html>
