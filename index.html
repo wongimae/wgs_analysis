@@ -691,7 +691,6 @@
       }
 
       function updatePlayback() {
-        var max = Number(timeRange.max);
         var index = Number(timeRange.value);
         var mapTimeline = timelineRecords();
         if (!mapTimeline.length) {
@@ -786,18 +785,16 @@
         var mapTimeline = timelineRecords();
         if (!mapTimeline.length) return;
         if (Number(timeRange.value) >= mapTimeline.length - 1) timeRange.value = "0";
+        var playbackStep = Math.max(1, Math.ceil(mapTimeline.length / 150));
         document.querySelectorAll(".route-layer").forEach(function (layer) { layer.classList.add("route-playing"); });
         document.getElementById("playButton").textContent = "Ⅱ";
         document.getElementById("playButton").setAttribute("aria-label", "Pause timeline");
         updatePlayback();
         playbackTimer = window.setInterval(function () {
-          var next = Number(timeRange.value) + 1;
-          if (next >= mapTimeline.length) {
-            stopPlayback();
-            return;
-          }
+          var next = Math.min(Number(timeRange.value) + playbackStep, mapTimeline.length - 1);
           timeRange.value = String(next);
           updatePlayback();
+          if (next >= mapTimeline.length - 1) stopPlayback();
         }, 120);
       });
 
